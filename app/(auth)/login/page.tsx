@@ -1,23 +1,13 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { signIn } from "@/app/actions/auth";
+import { SubmitButton } from "@/components/SubmitButton";
 
-export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(formData: FormData) {
-    setError(null);
-    setLoading(true);
-    const result = await signIn(formData);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    }
-  }
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; message?: string }>;
+}) {
+  const { error, message } = await searchParams;
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4">
@@ -26,7 +16,7 @@ export default function LoginPage() {
           Log in
         </h1>
 
-        <form action={handleSubmit} className="flex flex-col gap-4">
+        <form action={signIn} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label
               htmlFor="email"
@@ -67,9 +57,13 @@ export default function LoginPage() {
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           )}
 
-          <Button type="submit" disabled={loading} className="mt-2">
-            {loading ? "Logging in…" : "Log in"}
-          </Button>
+          {message === "check-email" && (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Check your email to confirm your account before logging in.
+            </p>
+          )}
+
+          <SubmitButton label="Log in" pendingLabel="Logging in…" />
         </form>
 
         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">

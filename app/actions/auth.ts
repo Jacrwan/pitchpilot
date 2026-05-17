@@ -7,13 +7,18 @@ import { createClient } from "@/lib/supabase/server";
 export async function signUp(formData: FormData) {
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: formData.get("email") as string,
     password: formData.get("password") as string,
   });
 
   if (error) {
-    return { error: error.message };
+    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+  }
+
+  // Email confirmation is enabled — no session yet
+  if (!data.session) {
+    redirect("/signup?message=check-email");
   }
 
   revalidatePath("/", "layout");
@@ -29,7 +34,7 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
   revalidatePath("/", "layout");

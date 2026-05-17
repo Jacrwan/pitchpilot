@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import { markCommentsRead } from "@/app/actions/comments";
 import { Button } from "@/components/ui/button";
 
+interface PostData {
+  subreddit: string;
+  title: string;
+  reddit_url: string | null;
+}
+
 interface Comment {
   id: string;
   post_id: string;
@@ -14,11 +20,14 @@ interface Comment {
   is_read: boolean;
   suggested_reply: string | null;
   is_replied: boolean;
-  posts: {
-    subreddit: string;
-    title: string;
-    reddit_url: string | null;
-  } | null;
+  // Supabase returns joined rows as an array; we normalize to single object at render
+  posts: PostData | PostData[] | null;
+}
+
+function resolvePost(posts: Comment["posts"]): PostData | null {
+  if (!posts) return null;
+  if (Array.isArray(posts)) return posts[0] ?? null;
+  return posts;
 }
 
 interface ReplyState {
@@ -28,7 +37,7 @@ interface ReplyState {
 }
 
 interface PostGroup {
-  post: Comment["posts"];
+  post: PostData | null;
   comments: Comment[];
 }
 
@@ -115,7 +124,7 @@ export function CommentsSection({
   const byPost = new Map<string, PostGroup>();
   for (const comment of comments) {
     if (!byPost.has(comment.post_id)) {
-      byPost.set(comment.post_id, { post: comment.posts, comments: [] });
+      byPost.set(comment.post_id, { post: resolvePost(comment.posts), comments: [] });
     }
     byPost.get(comment.post_id)!.comments.push(comment);
   }

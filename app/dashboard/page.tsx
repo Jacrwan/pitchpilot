@@ -4,6 +4,7 @@ import { signOut } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/SubmitButton";
 import { PostingSection } from "@/components/PostingSection";
+import { CommentsSection } from "@/components/CommentsSection";
 
 export default async function DashboardPage({
   searchParams,
@@ -23,6 +24,12 @@ export default async function DashboardPage({
     .select("reddit_username")
     .eq("user_id", user!.id)
     .maybeSingle();
+
+  const { data: comments } = await supabase
+    .from("comments")
+    .select("id, post_id, reddit_comment_id, author, body, created_utc, is_read, posts(subreddit, title, reddit_url)")
+    .eq("user_id", user!.id)
+    .order("created_utc", { ascending: false });
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4">
@@ -52,6 +59,13 @@ export default async function DashboardPage({
               <Link href="/api/auth/reddit">Connect Reddit</Link>
             </Button>
           )}
+        </div>
+
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
+          <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-4">
+            Comments
+          </h2>
+          <CommentsSection comments={comments ?? []} userId={user!.id} />
         </div>
 
         <PostingSection />

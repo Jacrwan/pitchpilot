@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/SubmitButton";
-import { PostingSection } from "@/components/PostingSection";
+import { DashboardWizard } from "@/components/DashboardWizard";
 import { CommentsSection } from "@/components/CommentsSection";
 
 export default async function DashboardPage({
@@ -68,7 +68,9 @@ export default async function DashboardPage({
           <CommentsSection comments={comments ?? []} userId={user!.id} />
         </div>
 
-        <PostingSection />
+        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
+          <DashboardWizard />
+        </div>
 
         <form action={signOut}>
           <SubmitButton label="Log out" pendingLabel="Logging out…" />

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -13,7 +14,9 @@ export default function Home() {
         native posts, and lets you approve before anything goes live.
       </p>
       <div className="mt-10">
-        <Button size="lg">Get started — it&apos;s free</Button>
+        <Button size="lg" asChild>
+          <Link href="/signup">Get started — it&apos;s free</Link>
+        </Button>
       </div>
     </main>
   );

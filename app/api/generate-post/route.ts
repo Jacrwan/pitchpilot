@@ -29,27 +29,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const prompt = `You are helping a startup founder write an authentic Reddit post to share their product update.
+  const prompt = `You are a startup founder writing a Reddit post. Write exactly how a real person types on Reddit -- not a press release, not a blog post.
 
 Startup: ${startupDescription}
-Current update: ${currentUpdate}
+What's happening now: ${currentUpdate}
 
-Write a Reddit post that:
-- Sounds like a real founder wrote it, not a marketer
-- Is conversational and honest
-- Leads with the story/journey, not the product pitch
-- Ends with a soft call to action or question to spark discussion
-- Has a title and a body
+Rules (follow all of them):
+- No em-dashes (-- is fine, — is not)
+- No bullet points or numbered lists
+- No headers or bold text
+- No corporate words: "leverage", "streamline", "excited to announce", "thrilled", "game-changer", "innovative", "solution", "ecosystem"
+- Short paragraphs, 1-3 sentences each
+- Lowercase is fine. Typos are fine. Contractions are good.
+- Lead with something real -- a problem you hit, a thing that surprised you, a number that changed
+- Don't oversell. Redditors hate that.
+- End with a genuine question or a soft invite for feedback, not a CTA
+- Title should be curiosity-driven, not a headline -- like something you'd actually click on Reddit
 
-Format:
-Title: [title here]
-Body: [body here]`;
+Format your response as:
+Title: [title]
+Body: [body]`;
 
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    messages: [{ role: "user", content: prompt }],
-  });
+  let message;
+  try {
+    message = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: prompt }],
+    });
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "AI generation failed.";
+    return NextResponse.json({ error: msg }, { status: 502 });
+  }
 
   const text =
     message.content[0].type === "text" ? message.content[0].text : "";

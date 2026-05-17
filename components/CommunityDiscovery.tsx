@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 interface Community {
@@ -10,9 +10,34 @@ interface Community {
   status: "loading" | "ready" | "error";
   approved: boolean;
   skipped: boolean;
+  draftTitle: string;
+  draftBody: string;
+  postStatus: "idle" | "posting" | "posted" | "error";
+  postUrl: string | null;
+  postError: string | null;
 }
 
-export function CommunityDiscovery() {
+function blank(name: string): Community {
+  return {
+    name,
+    summary: "",
+    allowsSelfPromo: "conditional",
+    status: "loading",
+    approved: false,
+    skipped: false,
+    draftTitle: "",
+    draftBody: "",
+    postStatus: "idle",
+    postUrl: null,
+    postError: null,
+  };
+}
+
+export function CommunityDiscovery({
+  generatedPost,
+}: {
+  generatedPost?: { title: string; body: string } | null;
+}) {
   const [startupDescription, setStartupDescription] = useState("");
   const [communities, setCommunities] = useState<Community[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
@@ -46,17 +71,7 @@ export function CommunityDiscovery() {
       return;
     }
 
-    setCommunities(
-      subreddits.map((name) => ({
-        name,
-        summary: "",
-        allowsSelfPromo: "conditional",
-        status: "loading",
-        approved: false,
-        skipped: false,
-      }))
-    );
-
+    setCommunities(subreddits.map(blank));
     setIsDiscovering(false);
 
     await Promise.all(
@@ -68,18 +83,13 @@ export function CommunityDiscovery() {
             body: JSON.stringify({ subredditName: name }),
           });
           const data = await res.json();
-
           setCommunities((prev) =>
             prev.map((c) =>
               c.name === name
                 ? {
                     ...c,
-                    summary: res.ok
-                      ? data.summary
-                      : (data.error ?? "Analysis failed."),
-                    allowsSelfPromo: res.ok
-                      ? data.allowsSelfPromo
-                      : "conditional",
+                    summary: res.ok ? data.summary : (data.error ?? "Analysis failed."),
+                    allowsSelfPromo: res.ok ? data.allowsSelfPromo : "conditional",
                     status: res.ok ? "ready" : "error",
                   }
                 : c
@@ -88,9 +98,7 @@ export function CommunityDiscovery() {
         } catch {
           setCommunities((prev) =>
             prev.map((c) =>
-              c.name === name
-                ? { ...c, summary: "Failed to analyze.", status: "error" }
-                : c
+              c.name === name ? { ...c, summary: "Failed to analyze.", status: "error" } : c
             )
           );
         }
@@ -98,9 +106,29 @@ export function CommunityDiscovery() {
     );
   }
 
+  useEffect(() => {
+    if (!generatedPost) return;
+    setCommunities((prev) =>
+      prev.map((c) =>
+        c.approved && c.postStatus !== "posted"
+          ? { ...c, draftTitle: generatedPost.title, draftBody: generatedPost.body }
+          : c
+      )
+    );
+  }, [generatedPost]);
+
   function approve(name: string) {
     setCommunities((prev) =>
-      prev.map((c) => (c.name === name ? { ...c, approved: true } : c))
+      prev.map((c) =>
+        c.name === name
+          ? {
+              ...c,
+              approved: true,
+              draftTitle: generatedPost?.title ?? c.draftTitle,
+              draftBody: generatedPost?.body ?? c.draftBody,
+            }
+          : c
+      )
     );
   }
 
@@ -116,6 +144,61 @@ export function CommunityDiscovery() {
         c.name === name ? { ...c, approved: false, skipped: false } : c
       )
     );
+  }
+
+  function setDraft(name: string, field: "draftTitle" | "draftBody", value: string) {
+    setCommunities((prev) =>
+      prev.map((c) => (c.name === name ? { ...c, [field]: value } : c))
+    );
+  }
+
+  async function handlePost(name: string) {
+    const community = communities.find((c) => c.name === name);
+    if (!community) return;
+
+    setCommunities((prev) =>
+      prev.map((c) =>
+        c.name === name ? { ...c, postStatus: "posting", postError: null } : c
+      )
+    );
+
+    try {
+      const res = await fetch("/api/post-to-reddit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subreddit: name,
+          title: community.draftTitle,
+          body: community.draftBody,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCommunities((prev) =>
+          prev.map((c) =>
+            c.name === name
+              ? { ...c, postStatus: "error", postError: data.error ?? "Posting failed." }
+              : c
+          )
+        );
+        return;
+      }
+
+      setCommunities((prev) =>
+        prev.map((c) =>
+          c.name === name ? { ...c, postStatus: "posted", postUrl: data.url } : c
+        )
+      );
+    } catch {
+      setCommunities((prev) =>
+        prev.map((c) =>
+          c.name === name
+            ? { ...c, postStatus: "error", postError: "Network error. Please try again." }
+            : c
+        )
+      );
+    }
   }
 
   return (
@@ -202,42 +285,79 @@ export function CommunityDiscovery() {
                     Analyzing…
                   </p>
                 ) : (
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {c.summary}
-                  </p>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{c.summary}</p>
                 )}
 
                 {c.status !== "loading" && !c.approved && (
                   <div className="flex gap-2 mt-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => approve(c.name)}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => approve(c.name)}>
                       Use this community
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => skip(c.name)}
-                    >
+                    <Button size="sm" variant="ghost" onClick={() => skip(c.name)}>
                       Skip
                     </Button>
                   </div>
                 )}
 
-                {c.approved && (
-                  <div className="flex items-center gap-3 mt-1">
-                    <p className="text-xs font-medium text-green-600 dark:text-green-400">
-                      Approved for posting
-                    </p>
+                {c.approved && c.postStatus !== "posted" && (
+                  <div className="flex flex-col gap-3 mt-1 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-green-600 dark:text-green-400">
+                        Approved — add your post
+                      </p>
+                      <Button size="sm" variant="ghost" onClick={() => undo(c.name)}>
+                        Undo
+                      </Button>
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="Post title"
+                      value={c.draftTitle}
+                      onChange={(e) => setDraft(c.name, "draftTitle", e.target.value)}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                    />
+
+                    <textarea
+                      rows={5}
+                      placeholder="Post body"
+                      value={c.draftBody}
+                      onChange={(e) => setDraft(c.name, "draftBody", e.target.value)}
+                      className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 resize-y"
+                    />
+
+                    {c.postError && (
+                      <p className="text-sm text-red-600 dark:text-red-400">{c.postError}</p>
+                    )}
+
                     <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => undo(c.name)}
+                      onClick={() => handlePost(c.name)}
+                      disabled={
+                        c.postStatus === "posting" ||
+                        !c.draftTitle.trim() ||
+                        !c.draftBody.trim()
+                      }
                     >
-                      Undo
+                      {c.postStatus === "posting" ? "Posting…" : "Post to Reddit"}
                     </Button>
+                  </div>
+                )}
+
+                {c.postStatus === "posted" && (
+                  <div className="flex flex-col gap-1 mt-1 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                    <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                      Posted!
+                    </p>
+                    {c.postUrl && (
+                      <a
+                        href={c.postUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-zinc-500 dark:text-zinc-400 underline hover:text-zinc-900 dark:hover:text-zinc-50"
+                      >
+                        View on Reddit →
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

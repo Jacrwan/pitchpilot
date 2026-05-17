@@ -8,7 +8,11 @@ interface GeneratedPost {
   body: string;
 }
 
-export function PostGenerator() {
+export function PostGenerator({
+  onPostGenerated,
+}: {
+  onPostGenerated?: (post: { title: string; body: string }) => void;
+}) {
   const [startupDescription, setStartupDescription] = useState("");
   const [currentUpdate, setCurrentUpdate] = useState("");
   const [post, setPost] = useState<GeneratedPost | null>(null);
@@ -33,7 +37,9 @@ export function PostGenerator() {
         return;
       }
 
-      setPost({ title: data.title, body: data.body });
+      const generated = { title: data.title, body: data.body };
+      setPost(generated);
+      onPostGenerated?.(generated);
     } catch {
       setError("Network error. Please try again.");
     } finally {

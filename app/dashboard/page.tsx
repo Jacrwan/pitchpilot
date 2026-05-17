@@ -3,8 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/SubmitButton";
-import { PostGenerator } from "@/components/PostGenerator";
-import { CommunityDiscovery } from "@/components/CommunityDiscovery";
+import { PostingSection } from "@/components/PostingSection";
 
 export default async function DashboardPage({
   searchParams,
@@ -55,19 +54,7 @@ export default async function DashboardPage({
           )}
         </div>
 
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
-          <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-4">
-            Discover communities
-          </h2>
-          <CommunityDiscovery />
-        </div>
-
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
-          <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-4">
-            Generate a post
-          </h2>
-          <PostGenerator />
-        </div>
+        <PostingSection />
 
         <form action={signOut}>
           <SubmitButton label="Log out" pendingLabel="Logging out…" />

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { markCommentsRead } from "@/app/actions/comments";
+import { Button } from "@/components/ui/button";
 
 interface Comment {
   id: string;
@@ -11,11 +12,19 @@ interface Comment {
   body: string;
   created_utc: number;
   is_read: boolean;
+  suggested_reply: string | null;
+  is_replied: boolean;
   posts: {
     subreddit: string;
     title: string;
     reddit_url: string | null;
   } | null;
+}
+
+interface ReplyState {
+  text: string;
+  status: "idle" | "posting" | "replied" | "error";
+  error: string | null;
 }
 
 interface PostGroup {
@@ -31,6 +40,17 @@ export function CommentsSection({
   userId: string;
 }) {
   const [allRead, setAllRead] = useState(false);
+  const [replies, setReplies] = useState<Map<string, ReplyState>>(() => {
+    const map = new Map<string, ReplyState>();
+    for (const c of comments) {
+      map.set(c.id, {
+        text: c.suggested_reply ?? "",
+        status: c.is_replied ? "replied" : "idle",
+        error: null,
+      });
+    }
+    return map;
+  });
 
   useEffect(() => {
     const hasUnread = comments.some((c) => !c.is_read);
@@ -38,6 +58,49 @@ export function CommentsSection({
       markCommentsRead(userId).then(() => setAllRead(true));
     }
   }, [comments, userId]);
+
+  function setReply(commentId: string, partial: Partial<ReplyState>) {
+    setReplies((prev) => {
+      const next = new Map(prev);
+      next.set(commentId, { ...prev.get(commentId)!, ...partial });
+      return next;
+    });
+  }
+
+  async function handleApprove(comment: Comment) {
+    const state = replies.get(comment.id);
+    if (!state || !state.text.trim()) return;
+
+    setReply(comment.id, { status: "posting", error: null });
+
+    try {
+      const res = await fetch("/api/post-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commentId: comment.id,
+          commentRedditId: comment.reddit_comment_id,
+          replyText: state.text,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setReply(comment.id, {
+          status: "error",
+          error: data.error ?? "Failed to post reply.",
+        });
+        return;
+      }
+
+      setReply(comment.id, { status: "replied" });
+    } catch {
+      setReply(comment.id, {
+        status: "error",
+        error: "Network error. Please try again.",
+      });
+    }
+  }
 
   if (comments.length === 0) {
     return (
@@ -85,11 +148,17 @@ export function CommentsSection({
             )}
           </div>
 
-          <div className="flex flex-col gap-3 pl-3 border-l border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-col gap-4 pl-3 border-l border-zinc-200 dark:border-zinc-800">
             {postComments.map((comment) => {
               const isUnread = !allRead && !comment.is_read;
+              const replyState = replies.get(comment.id) ?? {
+                text: "",
+                status: "idle" as const,
+                error: null,
+              };
+
               return (
-                <div key={comment.id} className="flex flex-col gap-1">
+                <div key={comment.id} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       u/{comment.author}
@@ -97,7 +166,12 @@ export function CommentsSection({
                     <span className="text-xs text-zinc-400">
                       {new Date(comment.created_utc * 1000).toLocaleDateString(
                         undefined,
-                        { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
+                        {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
                       )}
                     </span>
                     {isUnread && (
@@ -106,9 +180,49 @@ export function CommentsSection({
                       </span>
                     )}
                   </div>
+
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
                     {comment.body}
                   </p>
+
+                  {replyState.status === "replied" ? (
+                    <p className="text-xs font-medium text-green-600 dark:text-green-400">
+                      Replied ✓
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-2 mt-1">
+                      <textarea
+                        rows={3}
+                        value={replyState.text}
+                        onChange={(e) =>
+                          setReply(comment.id, { text: e.target.value })
+                        }
+                        placeholder={
+                          comment.suggested_reply
+                            ? undefined
+                            : "Write a reply…"
+                        }
+                        className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 resize-y"
+                      />
+                      {replyState.error && (
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          {replyState.error}
+                        </p>
+                      )}
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(comment)}
+                        disabled={
+                          replyState.status === "posting" ||
+                          !replyState.text.trim()
+                        }
+                      >
+                        {replyState.status === "posting"
+                          ? "Posting reply…"
+                          : "Approve + Post"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -27,7 +27,7 @@ export default async function DashboardPage({
 
   const { data: comments } = await supabase
     .from("comments")
-    .select("id, post_id, reddit_comment_id, author, body, created_utc, is_read, posts(subreddit, title, reddit_url)")
+    .select("id, post_id, reddit_comment_id, author, body, created_utc, is_read, suggested_reply, is_replied, posts(subreddit, title, reddit_url)")
     .eq("user_id", user!.id)
     .order("created_utc", { ascending: false });
 

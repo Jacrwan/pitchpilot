@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+const anthropic = new Anthropic();
 
 async function refreshRedditToken(refreshToken: string) {
   const res = await fetch("https://www.reddit.com/api/v1/access_token", {
@@ -20,6 +23,45 @@ async function refreshRedditToken(refreshToken: string) {
   return res.json() as Promise<{ access_token: string; expires_in: number }>;
 }
 
+async function generateReply(
+  postTitle: string,
+  postBody: string,
+  commentAuthor: string,
+  commentBody: string
+): Promise<string | null> {
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 256,
+      messages: [
+        {
+          role: "user",
+          content: `You are helping a startup founder respond to a comment on their Reddit post.
+
+Startup context from post: ${postTitle}
+
+Original post: ${postBody}
+
+Comment from ${commentAuthor}: ${commentBody}
+
+Write a reply that:
+- Sounds like the founder wrote it personally
+- Is conversational, not corporate
+- Directly addresses what the commenter said
+- Is 2-4 sentences max
+- Does not start with "Great question!" or similar filler
+- Feels human and grateful without being sycophantic`,
+        },
+      ],
+    });
+    return message.content[0].type === "text"
+      ? message.content[0].text.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -30,7 +72,7 @@ export async function GET(request: NextRequest) {
 
   const { data: posts } = await supabase
     .from("posts")
-    .select("id, user_id, reddit_post_id")
+    .select("id, user_id, reddit_post_id, title, body")
     .eq("status", "posted")
     .not("reddit_post_id", "is", null);
 
@@ -74,7 +116,6 @@ export async function GET(request: NextRequest) {
     }
 
     for (const post of userPosts) {
-      // Space requests to stay within Reddit rate limits
       await new Promise((r) => setTimeout(r, 500));
 
       const res = await fetch(
@@ -90,16 +131,26 @@ export async function GET(request: NextRequest) {
       if (!res.ok) continue;
 
       const payload = await res.json();
-      // Reddit returns [post_listing, comments_listing]
-      const children: Array<{ kind: string; data: { id: string; author: string; body: string; created_utc: number } }> =
-        payload[1]?.data?.children ?? [];
+      const children: Array<{
+        kind: string;
+        data: {
+          id: string;
+          author: string;
+          body: string;
+          created_utc: number;
+        };
+      }> = payload[1]?.data?.children ?? [];
 
       const { data: existing } = await supabase
         .from("comments")
         .select("reddit_comment_id")
         .eq("post_id", post.id);
 
-      const seen = new Set((existing ?? []).map((r: { reddit_comment_id: string }) => r.reddit_comment_id));
+      const seen = new Set(
+        (existing ?? []).map(
+          (r: { reddit_comment_id: string }) => r.reddit_comment_id
+        )
+      );
 
       const toInsert = children
         .filter(
@@ -118,9 +169,31 @@ export async function GET(request: NextRequest) {
           created_utc: c.data.created_utc,
         }));
 
-      if (toInsert.length > 0) {
-        await supabase.from("comments").insert(toInsert);
-        totalNew += toInsert.length;
+      if (toInsert.length === 0) continue;
+
+      const { data: inserted } = await supabase
+        .from("comments")
+        .insert(toInsert)
+        .select("id, author, body");
+
+      totalNew += toInsert.length;
+
+      // Generate AI reply drafts for each new comment
+      if (inserted) {
+        for (const comment of inserted) {
+          const reply = await generateReply(
+            post.title,
+            post.body,
+            comment.author,
+            comment.body
+          );
+          if (reply) {
+            await supabase
+              .from("comments")
+              .update({ suggested_reply: reply })
+              .eq("id", comment.id);
+          }
+        }
       }
     }
   }

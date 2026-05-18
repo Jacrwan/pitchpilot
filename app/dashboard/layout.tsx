@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/actions/auth";
+import { SidebarNav } from "@/components/SidebarNav";
 
 export default async function DashboardLayout({
   children,
@@ -44,39 +45,7 @@ export default async function DashboardLayout({
         </div>
 
         {/* Nav links */}
-        <nav style={{ flex: 1, padding: "1rem 0.75rem", display: "flex", flexDirection: "column", gap: "2px" }}>
-          <Link
-            href="/dashboard"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "0.5rem 0.75rem",
-              borderRadius: "0.5rem",
-              color: "#ffffff",
-              textDecoration: "none",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              backgroundColor: "rgba(139, 92, 246, 0.12)",
-            }}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/dashboard/settings"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "0.5rem 0.75rem",
-              borderRadius: "0.5rem",
-              color: "#94a3b8",
-              textDecoration: "none",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
-          >
-            Settings
-          </Link>
-        </nav>
+        <SidebarNav />
 
         {/* User + logout */}
         <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid #2a2a3a" }}>

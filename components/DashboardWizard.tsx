@@ -492,6 +492,9 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
       {/* ── Step 3 ─────────────────────────────────────────────────────────────── */}
       {step === 3 && (
         <div className="flex flex-col gap-4">
+          <p style={{ fontSize: "0.8125rem", color: "#94a3b8", backgroundColor: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.15)", borderRadius: "0.375rem", padding: "0.625rem 0.875rem" }}>
+            Posting very similar content across multiple communities may get flagged as spam. Consider customizing each post for its community.
+          </p>
           {approvedComms.map((c) => {
             const d = drafts.get(c.name) ?? {
               title: basePost?.title ?? "",

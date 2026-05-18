@@ -8,11 +8,11 @@ export default async function Navbar() {
   } = await supabase.auth.getUser();
 
   return (
-    <nav className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+    <nav style={{ borderBottom: "1px solid #2a2a3a", backgroundColor: "#0a0a0f" }}>
+      <div className="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
         <Link
           href="/"
-          className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 hover:opacity-80 transition-opacity"
+          className="text-lg font-bold tracking-tight text-white hover:opacity-80 transition-opacity"
         >
           Pitchpilot
         </Link>
@@ -20,14 +20,14 @@ export default async function Navbar() {
         {user ? (
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors"
+            className="text-sm font-medium px-4 py-2 rounded-md border border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white transition-colors"
           >
             Dashboard
           </Link>
         ) : (
           <Link
             href="/login"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors"
+            className="text-sm font-medium px-4 py-2 rounded-md border border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white transition-colors"
           >
             Login
           </Link>

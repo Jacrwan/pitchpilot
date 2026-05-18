@@ -20,7 +20,6 @@ interface Comment {
   is_read: boolean;
   suggested_reply: string | null;
   is_replied: boolean;
-  // Supabase returns joined rows as an array; we normalize to single object at render
   posts: PostData | PostData[] | null;
 }
 
@@ -41,6 +40,18 @@ interface PostGroup {
   comments: Comment[];
 }
 
+const INPUT_STYLE = {
+  backgroundColor: "#0a0a0f",
+  border: "1px solid #2a2a3a",
+  borderRadius: "0.375rem",
+  padding: "0.5rem 0.75rem",
+  fontSize: "0.875rem",
+  color: "#ffffff",
+  width: "100%",
+  resize: "vertical" as const,
+  outline: "none",
+} as const;
+
 // TODO: remove mock data — delete MOCK_COMMENTS and the `activeComments` line below, then replace every `activeComments` reference with `comments`
 const MOCK_COMMENTS: Comment[] = [
   {
@@ -54,11 +65,7 @@ const MOCK_COMMENTS: Comment[] = [
     suggested_reply:
       "Great question! We use Claude to read each subreddit's recent posts and rules, then score fit based on topic overlap and community culture — more of a vibe check than keyword matching. We want your post to actually land well, not just show up.",
     is_replied: false,
-    posts: {
-      subreddit: "startups",
-      title: "I built an AI tool that drafts Reddit posts for founders — feedback?",
-      reddit_url: null,
-    },
+    posts: { subreddit: "startups", title: "I built an AI tool that drafts Reddit posts for founders — feedback?", reddit_url: null },
   },
   {
     id: "mock-2",
@@ -71,11 +78,7 @@ const MOCK_COMMENTS: Comment[] = [
     suggested_reply:
       "Free during early access while we iron out the last rough edges. Would love to have you as an early user — happy to DM you a link if you want in.",
     is_replied: false,
-    posts: {
-      subreddit: "startups",
-      title: "I built an AI tool that drafts Reddit posts for founders — feedback?",
-      reddit_url: null,
-    },
+    posts: { subreddit: "startups", title: "I built an AI tool that drafts Reddit posts for founders — feedback?", reddit_url: null },
   },
   {
     id: "mock-3",
@@ -88,11 +91,7 @@ const MOCK_COMMENTS: Comment[] = [
     suggested_reply:
       "Built for everyone — you just describe your startup in plain English and the AI handles the rest. No technical knowledge required at all.",
     is_replied: false,
-    posts: {
-      subreddit: "entrepreneur",
-      title: "6 weeks of community outreach using AI — here's what worked",
-      reddit_url: null,
-    },
+    posts: { subreddit: "entrepreneur", title: "6 weeks of community outreach using AI — here's what worked", reddit_url: null },
   },
 ];
 
@@ -110,20 +109,14 @@ export function CommentsSection({
   const [replies, setReplies] = useState<Map<string, ReplyState>>(() => {
     const map = new Map<string, ReplyState>();
     for (const c of activeComments) {
-      map.set(c.id, {
-        text: c.suggested_reply ?? "",
-        status: c.is_replied ? "replied" : "idle",
-        error: null,
-      });
+      map.set(c.id, { text: c.suggested_reply ?? "", status: c.is_replied ? "replied" : "idle", error: null });
     }
     return map;
   });
 
   useEffect(() => {
     const hasUnread = activeComments.some((c) => !c.is_read);
-    if (hasUnread) {
-      markCommentsRead(userId).then(() => setAllRead(true));
-    }
+    if (hasUnread) markCommentsRead(userId).then(() => setAllRead(true));
   }, [activeComments, userId]);
 
   function setReply(commentId: string, partial: Partial<ReplyState>) {
@@ -137,44 +130,23 @@ export function CommentsSection({
   async function handleApprove(comment: Comment) {
     const state = replies.get(comment.id);
     if (!state || !state.text.trim()) return;
-
     setReply(comment.id, { status: "posting", error: null });
-
     try {
       const res = await fetch("/api/post-reply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commentId: comment.id,
-          commentRedditId: comment.reddit_comment_id,
-          replyText: state.text,
-        }),
+        body: JSON.stringify({ commentId: comment.id, commentRedditId: comment.reddit_comment_id, replyText: state.text }),
       });
       const data = await res.json();
-
-      if (!res.ok) {
-        setReply(comment.id, {
-          status: "error",
-          error: data.error ?? "Failed to post reply.",
-        });
-        return;
-      }
-
+      if (!res.ok) { setReply(comment.id, { status: "error", error: data.error ?? "Failed to post reply." }); return; }
       setReply(comment.id, { status: "replied" });
     } catch {
-      setReply(comment.id, {
-        status: "error",
-        error: "Network error. Please try again.",
-      });
+      setReply(comment.id, { status: "error", error: "Network error. Please try again." });
     }
   }
 
   if (activeComments.length === 0) {
-    return (
-      <p className="text-sm text-zinc-400 dark:text-zinc-500">
-        No comments yet. Comments on your Reddit posts will appear here.
-      </p>
-    );
+    return <p className="text-sm text-slate-500">No comments yet. Comments on your Reddit posts will appear here.</p>;
   }
 
   const unreadCount = allRead ? 0 : activeComments.filter((c) => !c.is_read).length;
@@ -190,7 +162,7 @@ export function CommentsSection({
   return (
     <div className="flex flex-col gap-5">
       {unreadCount > 0 && (
-        <p className="text-xs font-medium text-blue-600 dark:text-blue-400">
+        <p className="text-xs font-medium text-purple-400">
           {unreadCount} unread comment{unreadCount !== 1 ? "s" : ""}
         </p>
       )}
@@ -198,95 +170,55 @@ export function CommentsSection({
       {Array.from(byPost.entries()).map(([postId, { post, comments: postComments }]) => (
         <div key={postId} className="flex flex-col gap-2">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-              r/{post?.subreddit}
-            </span>
+            <span className="text-xs font-semibold text-slate-300">r/{post?.subreddit}</span>
             {post?.reddit_url ? (
-              <a
-                href={post.reddit_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 underline truncate"
-              >
+              <a href={post.reddit_url} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-500 hover:text-white underline truncate transition-colors">
                 {post.title}
               </a>
             ) : (
-              <span className="text-xs text-zinc-400 truncate">{post?.title}</span>
+              <span className="text-xs text-slate-500 truncate">{post?.title}</span>
             )}
           </div>
 
-          <div className="flex flex-col gap-4 pl-3 border-l border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-col gap-4 pl-3" style={{ borderLeft: "1px solid #2a2a3a" }}>
             {postComments.map((comment) => {
               const isUnread = !allRead && !comment.is_read;
-              const replyState = replies.get(comment.id) ?? {
-                text: "",
-                status: "idle" as const,
-                error: null,
-              };
+              const replyState = replies.get(comment.id) ?? { text: "", status: "idle" as const, error: null };
 
               return (
                 <div key={comment.id} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                      u/{comment.author}
-                    </span>
-                    <span className="text-xs text-zinc-400">
-                      {new Date(comment.created_utc * 1000).toLocaleDateString(
-                        undefined,
-                        {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
+                    <span className="text-xs font-medium text-slate-300">u/{comment.author}</span>
+                    <span className="text-xs text-slate-500">
+                      {new Date(comment.created_utc * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                     {isUnread && (
-                      <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium leading-none">
+                      <span style={{ fontSize: "0.6875rem", padding: "0.125rem 0.5rem", borderRadius: "9999px", backgroundColor: "rgba(139,92,246,0.15)", color: "#c084fc", border: "1px solid rgba(139,92,246,0.3)", fontWeight: 500 }}>
                         new
                       </span>
                     )}
                   </div>
 
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    {comment.body}
-                  </p>
+                  <p className="text-sm text-slate-400">{comment.body}</p>
 
                   {replyState.status === "replied" ? (
-                    <p className="text-xs font-medium text-green-600 dark:text-green-400">
-                      Replied ✓
-                    </p>
+                    <p className="text-xs font-medium text-purple-400">Replied ✓</p>
                   ) : (
                     <div className="flex flex-col gap-2 mt-1">
                       <textarea
                         rows={3}
                         value={replyState.text}
-                        onChange={(e) =>
-                          setReply(comment.id, { text: e.target.value })
-                        }
-                        placeholder={
-                          comment.suggested_reply
-                            ? undefined
-                            : "Write a reply…"
-                        }
-                        className="rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 resize-y"
+                        onChange={(e) => setReply(comment.id, { text: e.target.value })}
+                        placeholder={comment.suggested_reply ? undefined : "Write a reply…"}
+                        style={{ ...INPUT_STYLE, fontFamily: "inherit" }}
                       />
-                      {replyState.error && (
-                        <p className="text-xs text-red-600 dark:text-red-400">
-                          {replyState.error}
-                        </p>
-                      )}
+                      {replyState.error && <p className="text-xs text-red-400">{replyState.error}</p>}
                       <Button
                         size="sm"
                         onClick={() => handleApprove(comment)}
-                        disabled={
-                          replyState.status === "posting" ||
-                          !replyState.text.trim()
-                        }
+                        disabled={replyState.status === "posting" || !replyState.text.trim()}
                       >
-                        {replyState.status === "posting"
-                          ? "Posting reply…"
-                          : "Approve + Post"}
+                        {replyState.status === "posting" ? "Posting reply…" : "Approve + Post"}
                       </Button>
                     </div>
                   )}

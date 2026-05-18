@@ -1,10 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/app/actions/auth";
-import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/SubmitButton";
 import { DashboardWizard } from "@/components/DashboardWizard";
 import { CommentsSection } from "@/components/CommentsSection";
+
+const CARD = {
+  backgroundColor: "#111118",
+  border: "1px solid #2a2a3a",
+  borderRadius: "0.75rem",
+  padding: "1.5rem",
+  marginBottom: "1.5rem",
+} as const;
 
 export default async function DashboardPage({
   searchParams,
@@ -38,50 +43,43 @@ export default async function DashboardPage({
     .maybeSingle();
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-4">
-      <div className="w-full max-w-lg">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-1">
-          Dashboard
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">
-          {user?.email}
-        </p>
+    <main style={{ padding: "2rem", maxWidth: "760px" }}>
 
-        {error && (
-          <p className="mb-6 text-sm text-red-600 dark:text-red-400">{error}</p>
+      <h1 className="text-2xl font-bold text-white mb-8">Dashboard</h1>
+
+      {error && (
+        <p className="text-sm text-red-400 mb-6">{error}</p>
+      )}
+
+      {/* Reddit account */}
+      <div style={CARD}>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Reddit account</h2>
+        {redditToken ? (
+          <p className="text-sm text-white">
+            Connected as{" "}
+            <span className="font-medium text-purple-400">u/{redditToken.reddit_username}</span>
+          </p>
+        ) : (
+          <Link
+            href="/api/auth/reddit"
+            className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium border border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white transition-colors"
+          >
+            Connect Reddit
+          </Link>
         )}
-
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
-          <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">
-            Reddit account
-          </h2>
-          {redditToken ? (
-            <p className="text-sm text-zinc-900 dark:text-zinc-50">
-              Connected as{" "}
-              <span className="font-medium">u/{redditToken.reddit_username}</span>
-            </p>
-          ) : (
-            <Button asChild>
-              <Link href="/api/auth/reddit">Connect Reddit</Link>
-            </Button>
-          )}
-        </div>
-
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
-          <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-4">
-            Comments
-          </h2>
-          <CommentsSection comments={comments ?? []} userId={user!.id} />
-        </div>
-
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
-          <DashboardWizard savedDescription={startup?.description ?? ""} />
-        </div>
-
-        <form action={signOut}>
-          <SubmitButton label="Log out" pendingLabel="Logging out…" />
-        </form>
       </div>
+
+      {/* Comments */}
+      <div style={CARD}>
+        <h2 className="text-sm font-semibold text-slate-300 mb-4">Comments</h2>
+        <CommentsSection comments={comments ?? []} userId={user!.id} />
+      </div>
+
+      {/* Post wizard */}
+      <div style={CARD}>
+        <DashboardWizard savedDescription={startup?.description ?? ""} />
+      </div>
+
     </main>
   );
 }

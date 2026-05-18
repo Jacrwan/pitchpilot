@@ -12,9 +12,9 @@ export default async function Navbar() {
       <div className="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
         <Link
           href="/"
-          className="text-lg font-bold tracking-tight text-white hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          Pitchpilot
+          <span className="text-lg font-bold tracking-tight text-white">Pitchpilot</span>
         </Link>
 
         {user ? (

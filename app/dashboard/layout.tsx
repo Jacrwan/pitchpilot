@@ -35,15 +35,11 @@ export default async function DashboardLayout({
         <div style={{ padding: "1.5rem 1.25rem", borderBottom: "1px solid #2a2a3a" }}>
           <Link
             href="/"
-            style={{
-              color: "#ffffff",
-              fontWeight: 700,
-              fontSize: "1.125rem",
-              textDecoration: "none",
-              letterSpacing: "-0.02em",
-            }}
+            style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none", opacity: 1 }}
           >
-            Pitchpilot
+            <span style={{ color: "#ffffff", fontWeight: 700, fontSize: "1.0625rem", letterSpacing: "-0.02em" }}>
+              Pitchpilot
+            </span>
           </Link>
         </div>
 

@@ -59,6 +59,8 @@ Keep it under 4 sentences total.`;
     message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 256,
+      system:
+        "You are a tool for startup founders. Only generate Reddit posts and replies related to startups, products, and entrepreneurship. If asked to do anything else, respond with: 'Pitchpilot is designed for startup promotion only.'",
       messages: [{ role: "user", content: prompt }],
     });
   } catch (err: unknown) {

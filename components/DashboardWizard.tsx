@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { saveStartupDescription, clearStartupDescription } from "@/app/actions/startup";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,13 +56,14 @@ function SelfPromoBadge({ v }: { v: "yes" | "no" | "conditional" }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function DashboardWizard() {
+export function DashboardWizard({ savedDescription = "" }: { savedDescription?: string }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [maxStep, setMaxStep] = useState<1 | 2 | 3>(1);
 
   // Step 1
-  const [startupDescription, setStartupDescription] = useState("");
+  const [startupDescription, setStartupDescription] = useState(savedDescription);
   const [currentUpdate, setCurrentUpdate] = useState("");
+  const [rememberDescription, setRememberDescription] = useState(savedDescription.length > 0);
   const [basePost, setBasePost] = useState<BasePost | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -90,8 +92,28 @@ export function DashboardWizard() {
 
   // ── Step 1 actions ────────────────────────────────────────────────────────────
 
+  function validateStartupDescription(desc: string): string | null {
+    const trimmed = desc.trim();
+    if (trimmed.length < 20) {
+      return "Your startup description is too short — add a few more details.";
+    }
+    const lower = trimmed.toLowerCase();
+    const looksLikePrompt =
+      trimmed.endsWith("?") ||
+      /^(what |how |who |why |when |where |write |can you|could you|tell me|generate|create a|make a|ignore |forget )/.test(lower);
+    if (looksLikePrompt) {
+      return "This looks like a question rather than a startup description. Describe what your startup does.";
+    }
+    return null;
+  }
+
   async function handleGenerate() {
     setGenerateError(null);
+    const validationError = validateStartupDescription(startupDescription);
+    if (validationError) {
+      setGenerateError(validationError);
+      return;
+    }
     setIsGenerating(true);
     try {
       const res = await fetch("/api/generate-post", {
@@ -325,9 +347,36 @@ export function DashboardWizard() {
               rows={3}
               value={startupDescription}
               onChange={(e) => setStartupDescription(e.target.value)}
+              onBlur={() => {
+                if (rememberDescription && startupDescription.trim()) {
+                  saveStartupDescription(startupDescription);
+                }
+              }}
               placeholder="We're building an AI tool that helps founders promote their startup on Reddit without sounding like an ad."
               className={`${INPUT_CLS} resize-none`}
             />
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+              More detail = better posts. Include what your startup does, who it&apos;s for, and what makes it different.
+            </p>
+            <label className="flex items-center gap-2 mt-1 cursor-pointer select-none w-fit">
+              <input
+                type="checkbox"
+                checked={rememberDescription}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setRememberDescription(checked);
+                  if (checked && startupDescription.trim()) {
+                    saveStartupDescription(startupDescription);
+                  } else if (!checked) {
+                    clearStartupDescription();
+                  }
+                }}
+                className="rounded border-zinc-300 dark:border-zinc-600"
+              />
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                Remember my startup
+              </span>
+            </label>
           </div>
 
           <div className="flex flex-col gap-1">

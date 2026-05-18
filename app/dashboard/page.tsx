@@ -31,6 +31,12 @@ export default async function DashboardPage({
     .eq("user_id", user!.id)
     .order("created_utc", { ascending: false });
 
+  const { data: startup } = await supabase
+    .from("startups")
+    .select("description")
+    .eq("user_id", user!.id)
+    .maybeSingle();
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-4">
       <div className="w-full max-w-lg">
@@ -69,7 +75,7 @@ export default async function DashboardPage({
         </div>
 
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-5 mb-6">
-          <DashboardWizard />
+          <DashboardWizard savedDescription={startup?.description ?? ""} />
         </div>
 
         <form action={signOut}>

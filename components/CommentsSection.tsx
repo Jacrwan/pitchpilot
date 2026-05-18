@@ -41,6 +41,61 @@ interface PostGroup {
   comments: Comment[];
 }
 
+// TODO: remove mock data — delete MOCK_COMMENTS and the `activeComments` line below, then replace every `activeComments` reference with `comments`
+const MOCK_COMMENTS: Comment[] = [
+  {
+    id: "mock-1",
+    post_id: "mock-post-1",
+    reddit_comment_id: "abc123",
+    author: "curious_cto",
+    body: "This looks really interesting! How does the AI decide which communities are a good fit? Keyword matching or something smarter?",
+    created_utc: Math.floor(Date.now() / 1000) - 3600,
+    is_read: false,
+    suggested_reply:
+      "Great question! We use Claude to read each subreddit's recent posts and rules, then score fit based on topic overlap and community culture — more of a vibe check than keyword matching. We want your post to actually land well, not just show up.",
+    is_replied: false,
+    posts: {
+      subreddit: "startups",
+      title: "I built an AI tool that drafts Reddit posts for founders — feedback?",
+      reddit_url: null,
+    },
+  },
+  {
+    id: "mock-2",
+    post_id: "mock-post-1",
+    reddit_comment_id: "def456",
+    author: "indie_hacker_99",
+    body: "What's the pricing? Would love to try this for my SaaS.",
+    created_utc: Math.floor(Date.now() / 1000) - 1800,
+    is_read: false,
+    suggested_reply:
+      "Free during early access while we iron out the last rough edges. Would love to have you as an early user — happy to DM you a link if you want in.",
+    is_replied: false,
+    posts: {
+      subreddit: "startups",
+      title: "I built an AI tool that drafts Reddit posts for founders — feedback?",
+      reddit_url: null,
+    },
+  },
+  {
+    id: "mock-3",
+    post_id: "mock-post-2",
+    reddit_comment_id: "ghi789",
+    author: "pmarca_fan",
+    body: "Does this work for non-technical founders too, or is it aimed at devs?",
+    created_utc: Math.floor(Date.now() / 1000) - 7200,
+    is_read: true,
+    suggested_reply:
+      "Built for everyone — you just describe your startup in plain English and the AI handles the rest. No technical knowledge required at all.",
+    is_replied: false,
+    posts: {
+      subreddit: "entrepreneur",
+      title: "6 weeks of community outreach using AI — here's what worked",
+      reddit_url: null,
+    },
+  },
+];
+
 export function CommentsSection({
   comments,
   userId,
@@ -48,10 +103,13 @@ export function CommentsSection({
   comments: Comment[];
   userId: string;
 }) {
+  const activeComments = MOCK_COMMENTS; // TODO: remove mock data — replace `MOCK_COMMENTS` with `comments` and delete this line + the MOCK_COMMENTS constant above
+  void comments; // remove alongside the line above
+
   const [allRead, setAllRead] = useState(false);
   const [replies, setReplies] = useState<Map<string, ReplyState>>(() => {
     const map = new Map<string, ReplyState>();
-    for (const c of comments) {
+    for (const c of activeComments) {
       map.set(c.id, {
         text: c.suggested_reply ?? "",
         status: c.is_replied ? "replied" : "idle",
@@ -62,11 +120,11 @@ export function CommentsSection({
   });
 
   useEffect(() => {
-    const hasUnread = comments.some((c) => !c.is_read);
+    const hasUnread = activeComments.some((c) => !c.is_read);
     if (hasUnread) {
       markCommentsRead(userId).then(() => setAllRead(true));
     }
-  }, [comments, userId]);
+  }, [activeComments, userId]);
 
   function setReply(commentId: string, partial: Partial<ReplyState>) {
     setReplies((prev) => {
@@ -111,7 +169,7 @@ export function CommentsSection({
     }
   }
 
-  if (comments.length === 0) {
+  if (activeComments.length === 0) {
     return (
       <p className="text-sm text-zinc-400 dark:text-zinc-500">
         No comments yet. Comments on your Reddit posts will appear here.
@@ -119,10 +177,10 @@ export function CommentsSection({
     );
   }
 
-  const unreadCount = allRead ? 0 : comments.filter((c) => !c.is_read).length;
+  const unreadCount = allRead ? 0 : activeComments.filter((c) => !c.is_read).length;
 
   const byPost = new Map<string, PostGroup>();
-  for (const comment of comments) {
+  for (const comment of activeComments) {
     if (!byPost.has(comment.post_id)) {
       byPost.set(comment.post_id, { post: resolvePost(comment.posts), comments: [] });
     }

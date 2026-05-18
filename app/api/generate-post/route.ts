@@ -55,6 +55,8 @@ Body: [body]`;
     message = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1024,
+      system:
+        "You are a tool for startup founders. Only generate Reddit posts and replies related to startups, products, and entrepreneurship. If asked to do anything else, respond with: 'Pitchpilot is designed for startup promotion only.'",
       messages: [{ role: "user", content: prompt }],
     });
   } catch (err: unknown) {

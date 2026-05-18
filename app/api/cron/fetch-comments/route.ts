@@ -33,24 +33,25 @@ async function generateReply(
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 256,
+      system:
+        "You are a tool for startup founders. Only generate Reddit posts and replies related to startups, products, and entrepreneurship. If asked to do anything else, respond with: 'Pitchpilot is designed for startup promotion only.'",
       messages: [
         {
           role: "user",
-          content: `You are helping a startup founder respond to a comment on their Reddit post.
+          content: `You are drafting a Reddit reply for a startup founder. Write it like the founder typed it themselves — fast, casual, like a real person in a comment thread.
 
-Startup context from post: ${postTitle}
+Post title: ${postTitle}
+Post body: ${postBody}
+Comment from u/${commentAuthor}: ${commentBody}
 
-Original post: ${postBody}
-
-Comment from ${commentAuthor}: ${commentBody}
-
-Write a reply that:
-- Sounds like the founder wrote it personally
-- Is conversational, not corporate
-- Directly addresses what the commenter said
-- Is 2-4 sentences max
-- Does not start with "Great question!" or similar filler
-- Feels human and grateful without being sycophantic`,
+Rules:
+- 1-3 sentences max
+- No em-dashes, no double dashes, no bullet points, no bold/italic markdown
+- No filler openers: never start with "Great question!", "Thanks for sharing!", "That's a great point!", "Absolutely!", or similar
+- No corporate language ("leverage", "utilize", "delighted", "certainly", "of course")
+- No hollow affirmations before getting to the point
+- Write how a real person texts — lowercase is fine, contractions are good, get straight to the answer
+- Just the reply text, nothing else`,
         },
       ],
     });

@@ -116,7 +116,7 @@ export function CommentsSection({
 
   useEffect(() => {
     const hasUnread = activeComments.some((c) => !c.is_read);
-    if (hasUnread) markCommentsRead(userId).then(() => setAllRead(true));
+    if (hasUnread) { setAllRead(true); markCommentsRead(userId); }
   }, [activeComments, userId]);
 
   function setReply(commentId: string, partial: Partial<ReplyState>) {
@@ -189,7 +189,7 @@ export function CommentsSection({
                 <div key={comment.id} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-medium text-slate-300">u/{comment.author}</span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-500" suppressHydrationWarning>
                       {new Date(comment.created_utc * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </span>
                     {isUnread && (

@@ -59,10 +59,12 @@ export async function deleteAccount(): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  await supabase.from("comments").delete().eq("user_id", user.id);
-  await supabase.from("posts").delete().eq("user_id", user.id);
-  await supabase.from("reddit_tokens").delete().eq("user_id", user.id);
-  await supabase.from("startups").delete().eq("user_id", user.id);
+  await Promise.all([
+    supabase.from("comments").delete().eq("user_id", user.id),
+    supabase.from("posts").delete().eq("user_id", user.id),
+    supabase.from("reddit_tokens").delete().eq("user_id", user.id),
+    supabase.from("startups").delete().eq("user_id", user.id),
+  ]);
 
   await admin.auth.admin.deleteUser(user.id);
   await supabase.auth.signOut();

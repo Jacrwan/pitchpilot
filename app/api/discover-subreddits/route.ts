@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
 export async function POST(request: NextRequest) {
-  const { startupDescription } = await request.json();
+  const { startupDescription, excludeSubreddits } = await request.json();
 
   if (!startupDescription?.trim()) {
     return NextResponse.json(
@@ -13,13 +13,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const excludeClause =
+    Array.isArray(excludeSubreddits) && excludeSubreddits.length > 0
+      ? `\nExclude these subreddits (already shown or approved): ${excludeSubreddits.join(", ")}`
+      : "";
+
   const prompt = `Given this startup, suggest 5 relevant subreddit names where the founder could authentically share their product.
 
-Startup: ${startupDescription}
+Startup: ${startupDescription}${excludeClause}
 
 Rules:
 - Only suggest subreddits that are known to allow founder/product posts
 - Prefer communities with active founders (r/SaaS, r/indiehackers, r/entrepreneur, r/startups, r/sideproject)
+- Do not suggest any of the excluded subreddits
 - Return only subreddit names, one per line, no r/ prefix`;
 
   let message;

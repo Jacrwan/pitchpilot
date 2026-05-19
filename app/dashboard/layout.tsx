@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/app/actions/auth";
-import { SidebarNav } from "@/components/SidebarNav";
+import { SidebarShell } from "@/components/SidebarShell";
 
 export default async function DashboardLayout({
   children,
@@ -14,71 +12,8 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-
-      {/* Sidebar */}
-      <aside
-        style={{
-          width: "240px",
-          minWidth: "240px",
-          backgroundColor: "#111118",
-          borderRight: "1px solid #2a2a3a",
-          display: "flex",
-          flexDirection: "column",
-          position: "fixed",
-          top: 0,
-          left: 0,
-          height: "100vh",
-          zIndex: 20,
-        }}
-      >
-        {/* Logo */}
-        <div style={{ padding: "1.5rem 1.25rem", borderBottom: "1px solid #2a2a3a" }}>
-          <Link
-            href="/"
-            style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none", opacity: 1 }}
-          >
-            <span style={{ color: "#ffffff", fontWeight: 700, fontSize: "1.0625rem", letterSpacing: "-0.02em" }}>
-              Pitchpilot
-            </span>
-          </Link>
-        </div>
-
-        {/* Nav links */}
-        <SidebarNav />
-
-        {/* User + logout */}
-        <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid #2a2a3a" }}>
-          <p style={{ fontSize: "0.75rem", color: "#94a3b8", marginBottom: "0.75rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {user?.email}
-          </p>
-          <form action={signOut}>
-            <button
-              type="submit"
-              style={{
-                width: "100%",
-                padding: "0.4rem 0.75rem",
-                borderRadius: "0.375rem",
-                border: "1px solid #374151",
-                color: "#94a3b8",
-                backgroundColor: "transparent",
-                fontSize: "0.8125rem",
-                cursor: "pointer",
-                textAlign: "left",
-                transition: "border-color 0.2s, color 0.2s",
-              }}
-            >
-              Log out
-            </button>
-          </form>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div style={{ marginLeft: "240px", flex: 1, minWidth: 0 }}>
-        {children}
-      </div>
-
-    </div>
+    <SidebarShell email={user?.email ?? ""}>
+      {children}
+    </SidebarShell>
   );
 }

@@ -24,23 +24,15 @@ export default async function DashboardPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: redditToken } = await supabase
-    .from("reddit_tokens")
-    .select("reddit_username")
-    .eq("user_id", user!.id)
-    .maybeSingle();
-
-  const { data: comments } = await supabase
-    .from("comments")
-    .select("id, post_id, reddit_comment_id, author, body, created_utc, is_read, suggested_reply, is_replied, posts(subreddit, title, reddit_url)")
-    .eq("user_id", user!.id)
-    .order("created_utc", { ascending: false });
-
-  const { data: startup } = await supabase
-    .from("startups")
-    .select("description")
-    .eq("user_id", user!.id)
-    .maybeSingle();
+  const [
+    { data: redditToken },
+    { data: comments },
+    { data: startup },
+  ] = await Promise.all([
+    supabase.from("reddit_tokens").select("reddit_username").eq("user_id", user!.id).maybeSingle(),
+    supabase.from("comments").select("id, post_id, reddit_comment_id, author, body, created_utc, is_read, suggested_reply, is_replied, posts(subreddit, title, reddit_url)").eq("user_id", user!.id).order("created_utc", { ascending: false }),
+    supabase.from("startups").select("description").eq("user_id", user!.id).maybeSingle(),
+  ]);
 
   return (
     <main style={{ padding: "2rem", maxWidth: "760px" }}>

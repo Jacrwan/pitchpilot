@@ -103,14 +103,14 @@ export function SettingsPage({
   }
 
   async function handleDisconnect() {
+    setDisconnected(true);
     setRedditPending(true);
     setRedditMsg(null);
     const result = await disconnectReddit();
     setRedditPending(false);
     if (result.error) {
+      setDisconnected(false);
       setRedditMsg({ text: result.error, ok: false });
-    } else {
-      setDisconnected(true);
     }
   }
 

@@ -82,7 +82,9 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
   // Step 2
   const [communities, setCommunities] = useState<Community[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | null>(null);
+  const [seenSubreddits, setSeenSubreddits] = useState<Set<string>>(new Set());
 
   // Step 3
   const [drafts, setDrafts] = useState<Map<string, DraftCard>>(new Map());
@@ -140,6 +142,7 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
     setDiscoverError(null);
     setIsDiscovering(true);
     setCommunities([]);
+    setSeenSubreddits(new Set());
     let subreddits: string[];
     try {
       const res = await fetch("/api/discover-subreddits", {
@@ -155,11 +158,65 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
       setIsDiscovering(false);
       return;
     }
+    setSeenSubreddits(new Set(subreddits));
     setCommunities(subreddits.map((name) => ({
       name, summary: "", allowsSelfPromo: "conditional", status: "loading", approved: false, skipped: false,
     })));
     setIsDiscovering(false);
     await Promise.all(subreddits.map(async (name) => {
+      try {
+        const res = await fetch("/api/analyze-subreddit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subredditName: name }),
+        });
+        const data = await res.json();
+        setCommunities((prev) => prev.map((c) =>
+          c.name === name
+            ? { ...c, summary: res.ok ? data.summary : (data.error ?? "Analysis failed."), allowsSelfPromo: res.ok ? data.allowsSelfPromo : "conditional", status: res.ok ? "ready" : "error" }
+            : c
+        ));
+      } catch {
+        setCommunities((prev) => prev.map((c) =>
+          c.name === name ? { ...c, summary: "Failed to analyze.", status: "error" } : c
+        ));
+      }
+    }));
+  }
+
+  async function handleRegenerate() {
+    setDiscoverError(null);
+    setIsRegenerating(true);
+    const excludeList = Array.from(seenSubreddits);
+    let newSubreddits: string[];
+    try {
+      const res = await fetch("/api/discover-subreddits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startupDescription, excludeSubreddits: excludeList }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setDiscoverError(data.error ?? "Failed to discover subreddits."); setIsRegenerating(false); return; }
+      newSubreddits = data.subreddits as string[];
+    } catch {
+      setDiscoverError("Network error. Please try again.");
+      setIsRegenerating(false);
+      return;
+    }
+    setSeenSubreddits((prev) => {
+      const next = new Set(prev);
+      newSubreddits.forEach((name) => next.add(name));
+      return next;
+    });
+    setCommunities((prev) => {
+      const approved = prev.filter((c) => c.approved && !c.skipped);
+      const newComms: Community[] = newSubreddits.map((name) => ({
+        name, summary: "", allowsSelfPromo: "conditional", status: "loading", approved: false, skipped: false,
+      }));
+      return [...approved, ...newComms];
+    });
+    setIsRegenerating(false);
+    await Promise.all(newSubreddits.map(async (name) => {
       try {
         const res = await fetch("/api/analyze-subreddit", {
           method: "POST",
@@ -336,7 +393,7 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
               rows={3}
               value={startupDescription}
               onChange={(e) => setStartupDescription(e.target.value)}
-              onBlur={() => { if (rememberDescription && startupDescription.trim()) saveStartupDescription(startupDescription); }}
+              onBlur={() => { if (rememberDescription && startupDescription.trim()) saveStartupDescription(startupDescription).then((res) => { if (res.error) console.error("[onBlur] save returned error:", res.error); else console.log("[onBlur] save succeeded"); }).catch((err) => console.error("[onBlur] save threw:", err)); }}
               placeholder="We're building an AI tool that helps founders promote their startup on Reddit without sounding like an ad."
               className={`${INPUT_CLS} resize-none`}
               style={INPUT_STYLE}
@@ -350,9 +407,19 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
                 checked={rememberDescription}
                 onChange={(e) => {
                   const checked = e.target.checked;
+                  console.log("[Remember my startup] checkbox changed, checked=", checked, "description length=", startupDescription.trim().length);
                   setRememberDescription(checked);
-                  if (checked && startupDescription.trim()) saveStartupDescription(startupDescription);
-                  else if (!checked) clearStartupDescription();
+                  if (checked && startupDescription.trim()) {
+                    console.log("[Remember my startup] calling saveStartupDescription");
+                    saveStartupDescription(startupDescription).then((res) => {
+                      if (res.error) console.error("[Remember my startup] save returned error:", res.error);
+                      else console.log("[Remember my startup] save succeeded");
+                    }).catch((err) => console.error("[Remember my startup] save threw:", err));
+                  } else if (checked && !startupDescription.trim()) {
+                    console.log("[Remember my startup] checked but description is empty — will save on next blur");
+                  } else if (!checked) {
+                    clearStartupDescription().catch((err) => console.error("[Remember my startup] clear failed", err));
+                  }
                 }}
                 style={{ accentColor: "#8b5cf6" }}
               />
@@ -422,10 +489,22 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
         <div className="flex flex-col gap-4">
           {discoverError && <p className="text-sm text-red-400">{discoverError}</p>}
 
-          {communities.length === 0 && (
+          {communities.length === 0 ? (
             <Button onClick={handleDiscover} disabled={isDiscovering}>
               {isDiscovering ? "Finding communities…" : "Discover communities"}
             </Button>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={handleDiscover} disabled={isDiscovering || isRegenerating} variant="outline">
+                {isDiscovering ? "Finding communities…" : "Discover communities"}
+              </Button>
+              <Button
+                onClick={handleRegenerate}
+                disabled={isRegenerating || isDiscovering || communities.some((c) => c.status === "loading")}
+              >
+                {isRegenerating ? "Regenerating…" : "Regenerate"}
+              </Button>
+            </div>
           )}
 
           {communities.length > 0 && (

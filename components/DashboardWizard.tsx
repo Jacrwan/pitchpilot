@@ -187,13 +187,16 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
   async function handleRegenerate() {
     setDiscoverError(null);
     setIsRegenerating(true);
+    const lockedIn = communities.filter((c) => c.approved && !c.skipped);
+    const slotsNeeded = 5 - lockedIn.length;
+    if (slotsNeeded <= 0) { setIsRegenerating(false); return; }
     const excludeList = Array.from(seenSubreddits);
     let newSubreddits: string[];
     try {
       const res = await fetch("/api/discover-subreddits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startupDescription, excludeSubreddits: excludeList }),
+        body: JSON.stringify({ startupDescription, excludeSubreddits: excludeList, count: slotsNeeded }),
       });
       const data = await res.json();
       if (!res.ok) { setDiscoverError(data.error ?? "Failed to discover subreddits."); setIsRegenerating(false); return; }
@@ -208,13 +211,10 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
       newSubreddits.forEach((name) => next.add(name));
       return next;
     });
-    setCommunities((prev) => {
-      const approved = prev.filter((c) => c.approved && !c.skipped);
-      const newComms: Community[] = newSubreddits.map((name) => ({
-        name, summary: "", allowsSelfPromo: "conditional", status: "loading", approved: false, skipped: false,
-      }));
-      return [...approved, ...newComms];
-    });
+    const newComms: Community[] = newSubreddits.map((name) => ({
+      name, summary: "", allowsSelfPromo: "conditional", status: "loading", approved: false, skipped: false,
+    }));
+    setCommunities([...lockedIn, ...newComms]);
     setIsRegenerating(false);
     await Promise.all(newSubreddits.map(async (name) => {
       try {
@@ -494,17 +494,17 @@ export function DashboardWizard({ savedDescription = "" }: { savedDescription?: 
               {isDiscovering ? "Finding communities…" : "Discover communities"}
             </Button>
           ) : (
-            <div className="flex gap-2 flex-wrap">
-              <Button onClick={handleDiscover} disabled={isDiscovering || isRegenerating} variant="outline">
-                {isDiscovering ? "Finding communities…" : "Discover communities"}
-              </Button>
-              <Button
-                onClick={handleRegenerate}
-                disabled={isRegenerating || isDiscovering || communities.some((c) => c.status === "loading")}
-              >
-                {isRegenerating ? "Regenerating…" : "Regenerate"}
-              </Button>
-            </div>
+            <Button
+              onClick={handleRegenerate}
+              disabled={
+                isRegenerating ||
+                isDiscovering ||
+                communities.some((c) => c.status === "loading") ||
+                communities.filter((c) => c.approved && !c.skipped).length >= 5
+              }
+            >
+              {isRegenerating ? "Finding communities…" : "Find more communities"}
+            </Button>
           )}
 
           {communities.length > 0 && (

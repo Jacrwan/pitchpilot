@@ -4,7 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
 export async function POST(request: NextRequest) {
-  const { startupDescription, excludeSubreddits } = await request.json();
+  const { startupDescription, excludeSubreddits, count = 5 } = await request.json();
+  const safeCount = Math.max(1, Math.min(5, Number(count) || 5));
 
   if (!startupDescription?.trim()) {
     return NextResponse.json(
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
       ? `\nExclude these subreddits (already shown or approved): ${excludeSubreddits.join(", ")}`
       : "";
 
-  const prompt = `Given this startup, suggest 5 relevant subreddit names where the founder could authentically share their product.
+  const prompt = `Given this startup, suggest ${safeCount} relevant subreddit names where the founder could authentically share their product.
 
 Startup: ${startupDescription}${excludeClause}
 
@@ -55,7 +56,7 @@ Rules:
         .trim()
     )
     .filter((line) => line.length > 0 && !line.includes(" "))
-    .slice(0, 5);
+    .slice(0, safeCount);
 
   return NextResponse.json({ subreddits });
 }
